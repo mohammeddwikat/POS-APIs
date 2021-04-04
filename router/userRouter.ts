@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { IUser, User } from "../models";
 
 const userRouter = express.Router();
@@ -39,11 +39,49 @@ userRouter.post("/", jsonParser, async (req: Request, res: Response) => {
   }
 });
 
+interface UserResponse extends Response {
+    user?: IUser;
+}
+
+/** Return a category based on the sent id */
+userRouter.get(
+    "/:id",
+    getUser,
+    async (req: Request, res: UserResponse) => {
+      res.json(res.user);
+    }
+);
+
+
 const checkValidationPassword = (str: String): boolean => {
   return (
     str.replace(/[^a-zA-Z]/g, "").length >= 4 &&
     str.replace(/[^0-9]/g, "").length >= 1
   );
 };
+
+/**
+* Middleware help in finding the required category and return it if it found
+* @param {Callback} next -Call the next middleware in the stack to handle the next request
+*/
+async function getUser(
+    req: Request,
+    res: UserResponse,
+    next: NextFunction
+  ) {
+    let user: IUser;
+    try {
+      user = await User.findById(req.params.id);
+      if (user == null) {
+        return res.status(404).json({ message: "Cannot find the user" });
+      }
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+    res.user = user;
+    next();
+}
+
+
 
 module.exports = userRouter;
